@@ -1,3 +1,24 @@
 <html>
+
+	<head>
+		<script src="static/check.js"></script>
+		<script src="static/forge.bundle.js"></script>
+	</head>
+
   <h1>Hello World!</h1>
+	<form name="transferInfo">
+		<fieldset>
+			<legend> <b>Buyer Information (will be visible)</b> </legend>
+			Seller Name:<br>
+			<input type="text" name="buyer">
+		</fieldset>
+		<fieldset>
+			<legend> <b>Seller Information (will be encrypted)</b> </legend>
+	  	Seller Name:<br>
+			<input type="text" name="serial">
+		</fieldset>
+	</form>
+
+	<br><br>
+	<input type="submit" value="Submit" onclick="check()">
 </html>
