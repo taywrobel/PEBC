@@ -21,6 +21,7 @@ function resetForm() {
 }
 
 function check() {
+
 	// Get the form data from the document
 	oForm = document.forms["transferInfo"];
 

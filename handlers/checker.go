@@ -2,14 +2,12 @@ package handlers
 
 import (
 	"bytes"
-	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -24,8 +22,9 @@ import (
 )
 
 type Checker struct {
-	CA  *x509.Certificate
-	Key *rsa.PrivateKey
+	CA    *x509.Certificate
+	Key   *rsa.PrivateKey
+	check checkFunc
 }
 
 type checkFunc func(models.Buyer) bool
@@ -67,8 +66,9 @@ func NewChecker(caFiles string, fn checkFunc) (*Checker, error) {
 	}
 
 	return &Checker{
-		CA:  caCert,
-		Key: caKey,
+		CA:    caCert,
+		Key:   caKey,
+		check: fn,
 	}, nil
 }
 
@@ -130,7 +130,7 @@ func (ch *Checker) PerformCheck(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Make the determination
-	if !checkApproval(buyer) {
+	if !ch.check(buyer) {
 		// Sale not approved, send back a 403
 		w.WriteHeader(http.StatusForbidden)
 		return
@@ -200,12 +200,4 @@ func (ch *Checker) PerformCheck(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-}
-
-func checkApproval(buyer models.Buyer) bool {
-	b, _ := json.MarshalIndent(buyer, "", "  ")
-	h := md5.New()
-	io.WriteString(h, string(b))
-	hash := h.Sum(nil)
-	return hash[0] > 127 // Randomly (but consistently) reject/approve people, for demo purposes
 }
