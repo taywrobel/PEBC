@@ -5,6 +5,8 @@ if (window.FormData !== undefined) {
 function status(response) {
 	if (response.status >= 200 && response.status < 300) {
 		console.log('All good')
+		console.log(response);
+		return Promise.resolve(response)
 	} else {
 		if (response.status == 400) {
 			console.log('No cert for you!')
@@ -98,13 +100,26 @@ function check() {
 		})
 		.then(status)
 		.then(function(data) {
-			console.log('Request succeeded with JSON response', data);
+			console.log('Request succeeded with JSON response', data.body);
+			window.dummy = data;
 			// Download the generated private key using the file saver library
 			var pkpem = forge.pki.privateKeyToPem(keypair.privateKey)
-			var blob = new Blob([pkpem], {
+			var keyBlob = new Blob([pkpem], {
 				type: "application/x-pem-file"
 			});
-			saveAs(blob, "private-key.pem");
+			saveAs(keyBlob, "private-key.pem");
+
+			// Need to wait breifely because of a dumb race condition. HACK HACK HACK
+			var millisecondsToWait = 250;
+			data.body.getReader().read().then(function(response) {
+				console.log(response.value);
+				setTimeout(function() {
+					var certBlob = new Blob([response.value], {
+						type: "application/x-pem-file"
+					})
+					saveAs(certBlob, "transfer-receipt.pem")
+				}, millisecondsToWait);
+			});
 		})
 		.catch(function(error) {
 			console.log('Request failed', error);
