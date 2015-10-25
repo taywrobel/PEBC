@@ -8,8 +8,13 @@ function status(response) {
 		console.log(response);
 		return Promise.resolve(response)
 	} else {
-		if (response.status == 400) {
+		if (response.status == 403) {
 			console.log('No cert for you!')
+			alert("Unfortunately you have not passed the background check.")
+		} else {
+			alert(
+				"There was a server error that has prevented your check from being run.  This DOES NOT mean that you did not pass the background check.  Please try again later."
+			)
 		}
 		return Promise.reject(new Error(response.statusText))
 	}
@@ -120,7 +125,6 @@ function check() {
 		.then(status)
 		.then(function(data) {
 			console.log('Request succeeded with JSON response', data.body);
-			window.dummy = data;
 			// Download the generated private key using the file saver library
 			var pkpem = forge.pki.privateKeyToPem(keypair.privateKey)
 			var keyBlob = new Blob([pkpem], {
