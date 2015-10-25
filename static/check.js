@@ -14,13 +14,30 @@ function status(response) {
 }
 
 function check() {
+	// Get the form data from the document
 	oForm = document.forms["transferInfo"];
-	console.log("Name:" + oForm["buyer"].value)
 
-	var bodyText = "buyer=" + oForm["buyer"].value
+	// Separate the form data into the public and private components
+	var pubData = {
+		firstName: oForm["buyerFirst"].value,
+		middleName: oForm["buyerMiddle"].value,
+		lastName: oForm["buyerLast"].value
+	}
 
+	if (oForm["buyerSSN"].value != "") {
+		pubData.ssn = oForm["buyerSSN"].value
+	} else {
+		pubData.dl = oForm["buyerDL"].value
+		pubData.dlState = oForm["buyerDLS"].value
+	}
 
-	// Generate a secure RSA keypair
+	console.log(pubData)
+
+	var privData = {
+		name: oForm["seller"].value
+	}
+
+	// Generate an RSA keypair
 	console.log("Generating keypair")
 	var rsa = forge.pki.rsa;
 	var keypair = rsa.generateKeyPair({
@@ -28,6 +45,9 @@ function check() {
 		e: 0x10001
 	});
 	console.log("Keypair made")
+
+	// Use the keypair to encrypt the life out of the private data
+	var encPriv = keypair.publicKey.encrypt(JSON.stringify(privData));
 
 	// Create a certification request (CSR) using the keypair and the encrypted
 	// data
@@ -38,7 +58,7 @@ function check() {
 
 	csr.setSubject([{
 		name: 'commonName',
-		value: 'Taylor.Andrew.Wrobel'
+		value: btoa(JSON.stringify(pubData))
 	}, {
 		name: 'countryName',
 		value: 'US'
@@ -52,17 +72,8 @@ function check() {
 		name: 'organizationName',
 		value: 'ATF'
 	}, {
-		shortName: 'OU',
-		value: 'NA'
-	}]);
-	// set (optional) attributes
-	csr.setAttributes([{
-		name: 'challengePassword',
-		value: 'password'
-	}, {
-		// unstrcutredName is used to store the transfer information which has been encrypted.
-		name: 'unstructuredName',
-		value: 'SuperDuperSecretInfo'
+		shortName: 'OU', // Organizational Unit isn't needed.  Let's make use of it for secure data
+		value: btoa(encPriv)
 	}]);
 
 	// sign certification request
@@ -74,7 +85,7 @@ function check() {
 	var verified = csr.verify();
 
 	// convert certification request to PEM-format
-	var pem = forge.pki.certificationRequestToPem(csr);
+	var csrPem = forge.pki.certificationRequestToPem(csr);
 
 	console.log("CSR converted to PEM - sending to server")
 
@@ -83,11 +94,17 @@ function check() {
 			headers: {
 				"Content-type": "application/pkcs10"
 			},
-			body: pem
+			body: csrPem
 		})
 		.then(status)
 		.then(function(data) {
 			console.log('Request succeeded with JSON response', data);
+			// Download the generated private key using the file saver library
+			var pkpem = forge.pki.privateKeyToPem(keypair.privateKey)
+			var blob = new Blob([pkpem], {
+				type: "application/x-pem-file"
+			});
+			saveAs(blob, "private-key.pem");
 		})
 		.catch(function(error) {
 			console.log('Request failed', error);
