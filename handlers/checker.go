@@ -2,18 +2,18 @@ package handlers
 
 import (
 	"bytes"
+	"crypto/md5"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"net/http"
-	"net/http/httputil"
-	"reflect"
 	"time"
 
 	normalRand "math/rand"
@@ -23,20 +23,62 @@ import (
 	"github.com/twrobel3/UBC-PoC/models"
 )
 
+type Checker struct {
+	CA  *x509.Certificate
+	Key *rsa.PrivateKey
+}
+
+type checkFunc func(models.Buyer) bool
+
+func NewChecker(caFiles string, fn checkFunc) (*Checker, error) {
+	caKeyBytes, err := ioutil.ReadFile(caFiles + ".key")
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it into a pem block
+	caKeyBlock, _ := pem.Decode(caKeyBytes)
+	if caKeyBlock == nil {
+		return nil, err
+	}
+
+	// Parse the asn.1 block to get the keypair
+	caKey, err := x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Next, get the CA certificate, which we'll sign the CSR with
+	caCertBytes, err := ioutil.ReadFile(caFiles + ".pem")
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse it into a pem block
+	caCertBlock, _ := pem.Decode(caCertBytes)
+	if caCertBlock == nil {
+		return nil, err
+	}
+
+	// Parse the pem block into a cert
+	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Checker{
+		CA:  caCert,
+		Key: caKey,
+	}, nil
+}
+
 // PerformCheck conducts a background check being passed in from the
 // frontend.  It expects a CSR as the request body being passed in, with fields
 // matching the specified requirements and formats to perform the check.
 //
 // On successful check it returns a 200 status code and a signed certificate.
 // On a failed check, it will return a 403 (forbidden) status code.
-func PerformCheck(w http.ResponseWriter, req *http.Request) {
-	b, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		fmt.Println("Could not dump request:", err.Error())
-	} else {
-		fmt.Println(string(b))
-	}
-
+func (ch *Checker) PerformCheck(w http.ResponseWriter, req *http.Request) {
 	// Read the body (PEM encoded CSR)
 	bodyBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
@@ -96,52 +138,6 @@ func PerformCheck(w http.ResponseWriter, req *http.Request) {
 
 	// Good to transfer, let's sign the CSR and send the cert back.
 	// First get the private key from disk
-	caKeyBytes, err := ioutil.ReadFile("CA/rootCA.key")
-	if err != nil {
-		log.Print("Unable to read the ca key file:", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// Parse it into a pem block
-	caKeyBlock, _ := pem.Decode(caKeyBytes)
-	if caKeyBlock == nil {
-		log.Print("Unable to get a PEM block out of the CA keyfile")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// Parse the asn.1 block to get the keypair
-	caKey, err := x509.ParsePKCS1PrivateKey(caKeyBlock.Bytes)
-	if err != nil {
-		log.Print("Failure to parse ca key block:", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// Next, get the CA certificate, which we'll sign the CSR with
-	caCertBytes, err := ioutil.ReadFile("CA/rootCA.pem")
-	if err != nil {
-		log.Print("Unable to read the ca key file:", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// Parse it into a pem block
-	caCertBlock, _ := pem.Decode(caCertBytes)
-	if caCertBlock == nil {
-		log.Print("Unable to get a PEM block out of the CA cert")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// Parse the pem block into a cert
-	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
-	if err != nil {
-		log.Print("Failure to parse ca cert block:", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 
 	ski, err := GenerateSubjectKeyId(cr.PublicKey)
 	if err != nil {
@@ -184,10 +180,7 @@ func PerformCheck(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Sign the request
-	fmt.Println(reflect.TypeOf(caKey.PublicKey))
-	fmt.Println(reflect.TypeOf(caKey))
-
-	certDer, err := x509.CreateCertificate(rand.Reader, &hostTemplate, caCert, &caKey.PublicKey, caKey)
+	certDer, err := x509.CreateCertificate(rand.Reader, &hostTemplate, ch.CA, &ch.Key.PublicKey, ch.Key)
 	if err != nil {
 		log.Print("Failure to create signed certiicate:", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -211,6 +204,8 @@ func PerformCheck(w http.ResponseWriter, req *http.Request) {
 
 func checkApproval(buyer models.Buyer) bool {
 	b, _ := json.MarshalIndent(buyer, "", "  ")
-	fmt.Println(string(b))
-	return true
+	h := md5.New()
+	io.WriteString(h, string(b))
+	hash := h.Sum(nil)
+	return hash[0] > 127 // Randomly (but consistently) reject/approve people, for demo purposes
 }
