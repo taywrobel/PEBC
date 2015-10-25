@@ -2,12 +2,16 @@ package handlers
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io/ioutil"
 	"log"
 	"math/big"
@@ -15,8 +19,6 @@ import (
 	"time"
 
 	normalRand "math/rand"
-
-	. "github.com/coreos/etcd-ca/pkix"
 
 	"github.com/twrobel3/UBC-PoC/models"
 )
@@ -200,4 +202,25 @@ func (ch *Checker) PerformCheck(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+func GenerateSubjectKeyId(pub crypto.PublicKey) ([]byte, error) {
+	var pubBytes []byte
+	var err error
+	switch pub := pub.(type) {
+	case *rsa.PublicKey:
+		pubBytes, err = asn1.Marshal(rsa.PublicKey{
+			N: pub.N,
+			E: pub.E,
+		})
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.New("only RSA public key is supported")
+	}
+
+	hash := sha1.Sum(pubBytes)
+
+	return hash[:], nil
 }
