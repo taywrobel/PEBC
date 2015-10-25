@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
@@ -144,30 +143,45 @@ func PerformCheck(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// Fill out template info with the info from the CSR
-	hostTemplate.SerialNumber.Set(big.NewInt(normalRand.Int63()))
-
-	hostTemplate.Subject = cr.Subject
-
-	hostTemplate.NotAfter = time.Now().AddDate(25, 0, 0).UTC()
-
-	hostTemplate.SubjectKeyId, err = GenerateSubjectKeyId(cr.PublicKey)
+	ski, err := GenerateSubjectKeyId(cr.PublicKey)
 	if err != nil {
 		log.Print("Some shit broke, fuck if I know.", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	hostTemplate.IPAddresses = cr.IPAddresses
-	hostTemplate.DNSNames = cr.DNSNames
+	var // Build CA based on RFC5280
+	hostTemplate = x509.Certificate{
+		SerialNumber: big.NewInt(normalRand.Int63()),
+		Subject:      cr.Subject,
+		// NotBefore is set to be 10min earlier to fix gap on time difference in cluster
+		NotBefore: time.Now().Add(-600).UTC(),
+		// 25-year lease
+		NotAfter: time.Now().AddDate(25, 0, 0).UTC(),
+		// Used for certificate signing only
+		KeyUsage: 0,
 
-	// Parse a certificate out of the CSR ASN.1 data
-	// csrCert, err := x509.ParseCertificate(cr.Raw)
-	// if err != nil {
-	// 	log.Print("Failure to convert CSR to template certificate:", err.Error())
-	// 	w.WriteHeader(http.StatusInternalServerError)
-	// 	return
-	// }
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageServerAuth,
+			x509.ExtKeyUsageClientAuth,
+		},
+		UnknownExtKeyUsage: nil,
+
+		// activate CA
+		BasicConstraintsValid: false,
+
+		// 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey
+		// (excluding the tag, length, and number of unused bits)
+		// **SHOULD** be filled in later
+		SubjectKeyId: ski,
+
+		// Subject Alternative Name
+		IPAddresses: cr.IPAddresses,
+		DNSNames:    cr.DNSNames,
+
+		PermittedDNSDomainsCritical: false,
+		PermittedDNSDomains:         nil,
+	}
 
 	// Sign the request
 	fmt.Println(reflect.TypeOf(caKey.PublicKey))
@@ -185,7 +199,7 @@ func PerformCheck(w http.ResponseWriter, req *http.Request) {
 		Bytes: certDer,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/x-pem-file")
 
 	err = pem.Encode(w, block)
 	if err != nil {
@@ -199,38 +213,4 @@ func checkApproval(buyer models.Buyer) bool {
 	b, _ := json.MarshalIndent(buyer, "", "  ")
 	fmt.Println(string(b))
 	return true
-}
-
-var // Build CA based on RFC5280
-hostTemplate = x509.Certificate{
-	// **SHOULD** be filled in a unique number
-	SerialNumber: big.NewInt(0),
-	// **SHOULD** be filled in host info
-	Subject: pkix.Name{},
-	// NotBefore is set to be 10min earlier to fix gap on time difference in cluster
-	NotBefore: time.Now().Add(-600).UTC(),
-	// 10-year lease
-	NotAfter: time.Time{},
-	// Used for certificate signing only
-	KeyUsage: 0,
-
-	ExtKeyUsage: []x509.ExtKeyUsage{
-		x509.ExtKeyUsageServerAuth,
-		x509.ExtKeyUsageClientAuth,
-	},
-	UnknownExtKeyUsage: nil,
-
-	// activate CA
-	BasicConstraintsValid: false,
-
-	// 160-bit SHA-1 hash of the value of the BIT STRING subjectPublicKey
-	// (excluding the tag, length, and number of unused bits)
-	// **SHOULD** be filled in later
-	SubjectKeyId: nil,
-
-	// Subject Alternative Name
-	DNSNames: nil,
-
-	PermittedDNSDomainsCritical: false,
-	PermittedDNSDomains:         nil,
 }

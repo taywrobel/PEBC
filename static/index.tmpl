@@ -5,9 +5,10 @@
 		<script src="static/forge.bundle.js"></script>
 		<script src="static/file-saver.js"></script>
 		<link href="/static/favicon.ico" rel="icon" type="image/x-icon" />
+		<title>PRBC</title>
 	</head>
 
-  <h1>Hello World!</h1>
+  <h1>PRBC - Privacy Enhanced Background Checks</h1>
 	<form name="transferInfo">
 		<fieldset>
 			<legend> <b>Buyer Information (will be visible)</b> </legend>
@@ -29,7 +30,7 @@
 				<option value="AK">Alaska</option>
 				<option value="AZ">Arizona</option>
 				<option value="AR">Arkansas</option>
-				<option value="CA">California</option>
+				<option value="CA" selected="selected">California</option>
 				<option value="CO">Colorado</option>
 				<option value="CT">Connecticut</option>
 				<option value="DE">Delaware</option>
@@ -80,11 +81,43 @@
 		</fieldset>
 		<fieldset>
 			<legend> <b>Seller Information (will be encrypted)</b> </legend>
-	  	Seller Name:<br>
-			<input type="text" name="seller">
+	  	First Name:<br>
+			<input type="text" name="sellerFirst"><br>
+			Middle Name(s):<br>
+			<input type="text" name="sellerMiddle"><br>
+			Last Name:<br>
+			<input type="text" name="sellerLast"><br>
+			FFL# (if applicable):<br>
+			<input type="text" name="sellerFFL"><br>
 		</fieldset>
+		<fieldset>
+			<legend> <b>Firearm Information (will be encrypted)</b> </legend>
+	  	Manufacturer:<br>
+			<input type="text" name="gunManufacturer"><br>
+			Model:<br>
+			<input type="text" name="gunModel"><br>
+			Type:<br>
+			<select name="gunType">
+        <option value="handgun">Handgun</option>
+	      <option value="longGun">Long Gun (Rifles or Shotguns)</option>
+        <option value="other">Other (Frame, receriver, etc.)</option>
+			</select><br>
+			Serial Number:<br>
+			<input type="text" name="gunSerial">
+		</fieldset>
+		<fieldSet>
+			<legend> <b>Encryption Settings</b> </legend>
+			Key Size (bits):<br>
+			<select name="keySize">
+        <option value="1024">1024 (Less Secure)</option>
+	      <option value="2048" selected="selected">2048 (Secure)</option>
+        <option value="4096">4096 (Extremely Secure)</option>
+        <option value="8192">8192 (Irational Paranoia)</option>
+			</select>
+		</fieldSet>
 	</form>
 
-	<br><br>
-	<input type="submit" value="Submit" onclick="check()">
+	<br>
+	<input type="button" value="Clear" onclick="resetForm();">
+	<input type="submit" value="Submit" onclick="check();">
 </html>

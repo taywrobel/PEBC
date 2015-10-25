@@ -15,6 +15,11 @@ function status(response) {
 	}
 }
 
+function resetForm() {
+	document.forms["transferInfo"].reset();
+	console.log("Reset")
+}
+
 function check() {
 	// Get the form data from the document
 	oForm = document.forms["transferInfo"];
@@ -33,17 +38,30 @@ function check() {
 		pubData.dlState = oForm["buyerDLS"].value
 	}
 
+	var keySize = oForm["keySize"].value
+
 	console.log(pubData)
 
 	var privData = {
-		name: oForm["seller"].value
+		seller: {
+			firstName: oForm["sellerFirst"].value,
+			middleName: oForm["sellerMiddle"].value,
+			lastName: oForm["sellerLast"].value,
+			ffl: oForm["sellerFFL"].value
+		},
+		gun: {
+			manufacturer: oForm["gunManufacturer"].value,
+			model: oForm["gunModel"].value,
+			variety: oForm["gunType"].value,
+			serialNumber: oForm["gunSerial"].value
+		}
 	}
 
 	// Generate an RSA keypair
 	console.log("Generating keypair")
 	var rsa = forge.pki.rsa;
 	var keypair = rsa.generateKeyPair({
-		bits: 2048,
+		bits: parseInt(keySize),
 		e: 0x10001
 	});
 	console.log("Keypair made")
