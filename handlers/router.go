@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/auroratechnologies/mux"
-	"github.com/twrobel3/UBC-PoC/models"
+	"github.com/twrobel3/PEBC/models"
 )
 
 // Router returns a mux router with the routes supported by the audit service

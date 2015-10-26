@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/codegangsta/negroni"
-	"github.com/twrobel3/UBC-PoC/handlers"
+	"github.com/twrobel3/PEBC/handlers"
 )
 
 func main() {

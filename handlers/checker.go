@@ -20,7 +20,7 @@ import (
 
 	normalRand "math/rand"
 
-	"github.com/twrobel3/UBC-PoC/models"
+	"github.com/twrobel3/PEBC/models"
 )
 
 type Checker struct {
