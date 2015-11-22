@@ -7,8 +7,6 @@ This repository contains a proof of concept system for performing background che
 
 ### Technical Details:
 
-Full implementation details can be found in the accompanying file, `IMPLEMENTATION.md`, but a short summary follows:
-
 The main page is a simple web form, which requests similar information as is on the [ATF Form 4473](https://www.atf.gov/file/61446/download).  Fields can be added or removed trivially, and for the sake of clarity the form has been trimmed substantially.  Upon hitting "submit", the first thing that is done is to separate the buyer information, which is required to actually perform the background check, from all other information from the transaction (seller details, firearm type, serial number, etc).
 
 Within the browser, an RSA keypair is generated.  The keypair is used to encrypt all information not pertaining to the buyer.  The still unencrypted buyer information and the newly encrypted seller and firearm information are then put into a Certificate Signing Request, or CSR.  This is normally what you send to Verisign or Norton to receive a trusted certificate for securing your website.  Then ONLY the CSR (not the keypair) is sent to the server.
@@ -19,15 +17,12 @@ For a more thorough walkthrough of each step, and of the implications of each co
 
 ### Proposed Legislative Changes:
 
-Software is only half the solution.  For the concept behind this project to work, there would need to be changes and additions to current legislation.  The proposals for such changes can be found in full in the accompanying `LEGISLATURE.md` file.
-
-The synopsis of proposed changes in policy is to not actually make the checks mandatory (which would be all but unenforceable), but instead to increase the penalties sharply for opting out of a check if the weapon transferred or sold is later used in the commission of a crime.  This change, along with making the system openly available to the public will  strongly incentivize sellers of firearms to conduct the checks for all sales, while still allowing them to give a firearm to a family member or close friend that they trust without unnecessary friction.
-
+Software is only half the solution.  For the concept behind this project to work, there would need to be changes and additions to current legislation. The gist of the proposed changes in policy is to not actually make the checks mandatory (which would be all but unenforceable), but instead to increase the penalties sharply for opting out of a check if the weapon transferred or sold is later used in the commission of a crime.  This change, along with making the system openly available to the public will  strongly incentivize sellers of firearms to conduct the checks for all sales, while still allowing them to give a firearm to a family member or close friend that they trust without unnecessary friction.
 
 ##### Software Requirements:
 
-Golang >= 1.4
-Google Chrome (Other browsers untested)
+ - Golang >= 1.4
+ - Google Chrome (Other browsers untested)
 
 #####Building and Running:
 Once your [go environment is set up](https://golang.org/doc/install), you can get this repository by running the command `go get github.com/twrobel3/PEBC`.
